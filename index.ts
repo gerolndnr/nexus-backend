@@ -32,12 +32,15 @@ async function main() {
   }
 
   const usefulSkills = await findNecessarySkills(
-    "I need a Java expert.",
+    "I need a JavaScript and a C# expert.",
     allSkills,
   );
 
   if (usefulSkills) {
     console.log(usefulSkills);
+
+    const personContainer = await getPersonList(usefulSkills);
+    console.log(personContainer);
   }
 }
 
@@ -96,10 +99,34 @@ async function getAllSkills() {
   return skillList;
 }
 
-export var getAllPersons = function (): string[] {
-  console.debug("Getting all persons...");
-  return [];
+type PersonContainer = {
+  [key: string]: string[];
 };
+
+async function getPersonList(necessarySkills: string[]) {
+  console.log("Getting all persons having the necessary skills...");
+
+  let personContainer: PersonContainer = {};
+
+  for (const necessarySkill of necessarySkills) {
+    const result = await databaseDriver.executeQuery(
+      "MATCH (person:Person)-[:HAS_SKILL]->(skill:Skill { skillName: $skillName }) RETURN person",
+      { skillName: necessarySkill },
+    );
+
+    for (const record of result.records) {
+      const personName = record.get("person").properties.personName;
+
+      if (!personContainer[personName]) {
+        personContainer[personName] = [necessarySkill];
+      } else {
+        personContainer[personName].push(necessarySkill);
+      }
+    }
+  }
+
+  return personContainer;
+}
 
 async function addSkillToPerson(person: string, skill: string) {
   console.debug("Adding skill to person...");
