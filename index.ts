@@ -31,16 +31,18 @@ async function main() {
     }
   }
 
-  const usefulSkills = await findNecessarySkills(
-    "I need a JavaScript and a C# expert.",
-    allSkills,
-  );
+  const problem = "I need a JavaScript and a C# expert.";
+
+  const usefulSkills = await findNecessarySkills(problem, allSkills);
 
   if (usefulSkills) {
     console.log(usefulSkills);
 
     const personContainer = await getPersonList(usefulSkills);
-    console.log(personContainer);
+
+    const matchingPerson = await findMatchingPerson(personContainer, problem);
+
+    console.log(matchingPerson);
   }
 }
 
@@ -126,6 +128,43 @@ async function getPersonList(necessarySkills: string[]) {
   }
 
   return personContainer;
+}
+
+const BestMatchingPerson = z.object({
+  personName: z.string(),
+  reason: z.string(),
+});
+
+async function findMatchingPerson(
+  personContainer: PersonContainer,
+  problem: string,
+) {
+  console.log("Finding matching person...");
+
+  let systemMessage =
+    "Find the person with the best matching skillset to solve the problem and justify your decision shortly.";
+
+  let userMessage = `The problem is the following: '${problem}' and the persons with the skills are the following: ${JSON.stringify(personContainer)} `;
+
+  const completion = await openai.beta.chat.completions.parse({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: systemMessage,
+      },
+      {
+        role: "user",
+        content: userMessage,
+      },
+    ],
+    response_format: zodResponseFormat(
+      BestMatchingPerson,
+      "best-matching-person",
+    ),
+  });
+
+  return completion.choices[0].message.parsed;
 }
 
 async function addSkillToPerson(person: string, skill: string) {
